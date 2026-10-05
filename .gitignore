@@ -1,0 +1,6 @@
+data/*.json
+backups/*.json
+!data/.gitkeep
+!backups/.gitkeep
+__pycache__/
+*.pyc
