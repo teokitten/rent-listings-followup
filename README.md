@@ -72,9 +72,11 @@ A local web app for tracking apartment listings during a rental search, designed
   <details>
   <summary>How to install pip if missing</summary>
 
-  ```bash
-  python3 -m ensurepip --upgrade
-  ```
+  **Linux (Debian/Ubuntu):** `sudo apt install python3-pip`
+
+  **Linux (Fedora):** `sudo dnf install python3-pip`
+
+  **macOS / Windows:** `python3 -m ensurepip --upgrade`
   </details>
 
 ---
