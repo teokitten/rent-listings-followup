@@ -2,7 +2,7 @@
 
 A local web app for tracking apartment listings during a rental search, designed for the Czech market but usable for any country with some [limitations](#limitations).
 
-A live demo is available at [demo link](https://teokitten.github.io/rent-listings-followup/demo.html) – all data is fictional and resets on refresh.
+[Try the live demo](https://teokitten.github.io/rent-listings-followup/demo.html) – all data is fictional and resets on refresh.
 
 ---
 
