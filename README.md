@@ -99,15 +99,6 @@ A local web app for tracking apartment listings during a rental search, designed
 
 4. Open `http://localhost:5000` in your browser.
 
-To run the demo without the server:
-
-1. Start a local server:
-```bash
-   python3 -m http.server 5001
-```
-
-2. Open `http://localhost:5001/demo.html`.
-
 ---
 
 ## Limitations
