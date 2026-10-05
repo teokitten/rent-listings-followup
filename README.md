@@ -81,22 +81,32 @@ A local web app for tracking apartment listings during a rental search, designed
 
 ## Installation
 
+1. Clone the repository:
 ```bash
-git clone https://github.com/teokitten/rent-listings-followup
-cd rent-listings-followup
-pip install flask --break-system-packages
-python3 app.py
+   git clone https://github.com/teokitten/rent-listings-followup
+   cd rent-listings-followup
 ```
 
-Open `http://localhost:5000` in your browser.
+2. Install Flask:
+```bash
+   pip install flask --break-system-packages
+```
+
+3. Start the app:
+```bash
+   python3 app.py
+```
+
+4. Open `http://localhost:5000` in your browser.
 
 To run the demo without the server:
 
+1. Start a local server:
 ```bash
-python3 -m http.server 5001
+   python3 -m http.server 5001
 ```
 
-Then open `http://localhost:5001/demo.html`.
+2. Open `http://localhost:5001/demo.html`.
 
 ---
 
