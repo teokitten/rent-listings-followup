@@ -5,6 +5,7 @@ import uuid
 import shutil
 import threading
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from glob import glob
 
 from flask import Flask, request, jsonify, render_template, send_file, Response
@@ -376,7 +377,7 @@ def update_listing(listing_id):
 @app.route('/api/listings/<listing_id>/log', methods=['POST'])
 def add_log_entry(listing_id):
     body = request.get_json(force=True, silent=True) or {}
-    content = body.get('content', '')
+    content = body.get('text', body.get('content', ''))
 
     with _data_lock:
         data = load_data()
@@ -384,7 +385,7 @@ def add_log_entry(listing_id):
         if not listing:
             return jsonify({'error': 'listing not found'}), 404
 
-        listing['log'].append({'timestamp': now_iso(), 'type': 'note', 'content': content})
+        listing['log'].append({'timestamp': datetime.now(ZoneInfo('Europe/Prague')).isoformat(), 'type': 'note', 'content': content})
         save_listings(data['listings'])
     return jsonify(listing)
 

@@ -553,6 +553,7 @@
 <div id="app-layout" style="display:flex;margin-top:var(--topbar-height);height:calc(100vh - var(--topbar-height));overflow:hidden;">
   <div id="shortcut-sidebar" style="width:200px;flex-shrink:0;background:var(--bg-sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;height:100%;"></div>
   <div id="content-area" style="flex:1;min-width:0;display:flex;flex-direction:column;height:100%;overflow-y:auto;">
+    <div id="metro-bar" style="display:flex;justify-content:flex-end;padding:12px 24px 0;"></div>
     <div id="filter-bar-wrap" style="padding:16px 24px 8px;"></div>
     <div id="main" style="padding:0 24px 24px;"></div>
     <footer>Built by <a href="https://teokitten.github.io" target="_blank" rel="noopener noreferrer">Teo Moldovanu</a></footer>
@@ -1340,12 +1341,12 @@ function parseBulkText(text) {
     const uniqueLines = [...new Set(contextLines.map(l => l.replace(/^\d+[\.\)]\s*/, '').trim()).filter(Boolean))];
     const comment = uniqueLines.join(' ').replace(/\s+/g, ' ').trim();
     const existing = allListings.find(l => l.url === url);
-    const suggestedStatus = detectStatusFromText(comment);
     if (existing) {
-      return { type: 'update', url, description: comment, suggestedStatus };
-    } else {
-      return { type: 'new', url, comments: comment, suggestedStatus: 'pending_contact' };
+      const title = existing.title || titleFromUrl(existing.url);
+      if (comment) return { type: 'note', url, listingId: existing.id, title, content: comment };
+      return { type: 'duplicate', url, listingId: existing.id, title };
     }
+    return { type: 'new', url, comments: comment, suggestedStatus: 'pending_contact' };
   });
 }
 
@@ -1373,22 +1374,33 @@ function renderBulkPreviewItem(item){
   card.style.cssText='background:var(--bg-input);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;';
   const topRow=document.createElement('div'); topRow.style.cssText='display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;';
   const tag=document.createElement('span');
-  if(item.type==='new'){tag.textContent='🆕 New Listing';tag.style.cssText='background:var(--status-active-bg);color:var(--status-active-text);border-radius:10px;padding:2px 10px;font-size:11px;font-weight:600;';}
-  else{tag.textContent='🔄 Update';tag.style.cssText='background:#fff3cd;color:#7d5a00;border:1px solid #f0c040;border-radius:10px;padding:2px 10px;font-size:11px;font-weight:600;';}
-  topRow.appendChild(tag);
-  const link=document.createElement('a'); link.href=item.url; link.target='_blank'; link.textContent=truncateUrlDisplay(item.url,60); link.style.fontSize='13px'; topRow.appendChild(link);
-  card.appendChild(topRow);
+  const link=document.createElement('a'); link.href=item.url; link.target='_blank'; link.textContent=truncateUrlDisplay(item.url,60); link.style.fontSize='13px';
   const textBlock=document.createElement('div'); textBlock.style.cssText='color:var(--text-secondary);font-size:12px;margin-bottom:8px;';
-  textBlock.textContent=item.type==='new'?(item.comments?`Your notes: ${item.comments}`:'Your notes: (none)'):(item.description?`Update: ${item.description}`:'Update: (none)');
+
+  if(item.type==='note'){
+    tag.textContent='📝 Add note'; tag.style.cssText='background:#e8f5e9;color:#1b5e20;border:1px solid #81c784;border-radius:10px;padding:2px 10px;font-size:11px;font-weight:600;';
+    topRow.appendChild(tag); topRow.appendChild(link); card.appendChild(topRow);
+    textBlock.textContent=`Will add note to existing listing: ${item.title}`;
+    card.appendChild(textBlock);
+    const noteBody=document.createElement('div'); noteBody.style.cssText='font-size:12px;color:var(--text-primary);white-space:pre-wrap;';
+    noteBody.textContent=item.content;
+    card.appendChild(noteBody);
+    return card;
+  }
+
+  if(item.type==='duplicate'){
+    tag.textContent='⏭ Duplicate'; tag.style.cssText='background:var(--bg-card);color:var(--text-muted);border:1px solid var(--border);border-radius:10px;padding:2px 10px;font-size:11px;font-weight:600;';
+    topRow.appendChild(tag); topRow.appendChild(link); card.appendChild(topRow);
+    textBlock.textContent=`Already in listings as "${item.title}" – will be skipped`;
+    card.appendChild(textBlock);
+    return card;
+  }
+
+  tag.textContent='🆕 New Listing'; tag.style.cssText='background:var(--status-active-bg);color:var(--status-active-text);border-radius:10px;padding:2px 10px;font-size:11px;font-weight:600;';
+  topRow.appendChild(tag); topRow.appendChild(link); card.appendChild(topRow);
+  textBlock.textContent=item.comments?`Your notes: ${item.comments}`:'Your notes: (none)';
   card.appendChild(textBlock);
   const select=buildStatusSelect(item.suggestedStatus); card.appendChild(select); item.selectEl=select;
-  if(item.type==='update'){
-    const existing=allListings.find(l=>l.url===item.url);
-    const matchNote=document.createElement('div'); matchNote.style.marginTop='6px'; matchNote.style.fontSize='11px';
-    if(existing){matchNote.textContent='✓ Matches existing listing';matchNote.style.color='var(--status-active-text)';}
-    else{matchNote.textContent='⚠ No match – will create new listing';matchNote.style.color='#b07d00';}
-    card.appendChild(matchNote);
-  }
   return card;
 }
 
@@ -1410,10 +1422,10 @@ function openBulkModal(){
   parseBtn.onclick=()=>{
     bulkPreviewItems=parseBulkText(textarea.value); resultsDiv.innerHTML='';
     const newCount=bulkPreviewItems.filter(i=>i.type==='new').length;
-    const updateCount=bulkPreviewItems.filter(i=>i.type==='update').length;
-    const dupCount=bulkPreviewItems.filter(i=>i.type==='new' && allListings.find(l=>l.url===i.url)).length;
+    const noteCount=bulkPreviewItems.filter(i=>i.type==='note').length;
+    const dupCount=bulkPreviewItems.filter(i=>i.type==='duplicate').length;
     const countLine=document.createElement('div'); countLine.style.cssText='color:var(--text-secondary);font-size:13px;margin-bottom:10px;';
-    countLine.textContent=`Found ${bulkPreviewItems.length} items (${newCount} new, ${updateCount} updates${dupCount>0?`, ${dupCount} duplicate${dupCount>1?'s':''} will be skipped`:''})`;
+    countLine.textContent=`Found ${bulkPreviewItems.length} items (${newCount} new, ${noteCount} notes to add, ${dupCount} duplicate${dupCount!==1?'s':''} to skip)`;
     resultsDiv.appendChild(countLine);
     bulkPreviewItems.forEach(item=>resultsDiv.appendChild(renderBulkPreviewItem(item)));
     confirmBtn.style.display=bulkPreviewItems.length>0?'inline-block':'none';
@@ -1421,7 +1433,7 @@ function openBulkModal(){
   confirmBtn.onclick=async()=>{
     confirmBtn.disabled=true; confirmBtn.textContent='Importing…';
     const today=new Date().toISOString().slice(0,10);
-    let newCount=0,updateCount=0,failCount=0;
+    let newCount=0,noteCount=0,failCount=0,skipCount=0;
     const createdForExtraction=[];
     for(const item of bulkPreviewItems){
       const selectedStatus=item.selectEl?item.selectEl.getValue():item.suggestedStatus;
@@ -1432,22 +1444,21 @@ function openBulkModal(){
           const resp=await fetch('/api/listings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:item.url,date_added:today,comments:item.comments,status:selectedStatus})});
           if(!resp.ok) throw new Error('create failed');
           const listing=await resp.json(); allListings.push(listing); newCount++; createdForExtraction.push(listing);
+        }else if(item.type==='note'){
+          const resp=await fetch(`/api/listings/${item.listingId}/log`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:item.content})});
+          if(!resp.ok) throw new Error('note failed');
+          const updated=await resp.json();
+          const existing=allListings.find(l=>l.id===item.listingId);
+          if(existing) Object.assign(existing,updated);
+          noteCount++;
         }else{
-          const existing=allListings.find(l=>l.url===item.url);
-          if(existing){
-            const resp=await fetch(`/api/listings/${existing.id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:selectedStatus,note:item.description})});
-            if(!resp.ok) throw new Error('update failed');
-            const updated=await resp.json(); Object.assign(existing,updated); updateCount++;
-          }else{
-            const resp=await fetch('/api/listings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:item.url,date_added:today,comments:item.description,status:selectedStatus})});
-            if(!resp.ok) throw new Error('create failed');
-            const listing=await resp.json(); allListings.push(listing); newCount++; createdForExtraction.push(listing);
-          }
+          skipCount++;
         }
       }catch(e){ failCount++; }
     }
     overlay.remove(); refreshView();
-    let msg=`Imported ${newCount} listings, updated ${updateCount} listings`;
+    let msg=`Imported ${newCount} listings, added ${noteCount} note${noteCount!==1?'s':''}`;
+    if(skipCount>0) msg+=`, skipped ${skipCount} duplicate${skipCount>1?'s':''}`;
     if(failCount>0) msg+=` (${failCount} failed)`;
     showToast(msg,failCount>0);
     createdForExtraction.forEach(listing=>{
@@ -1589,8 +1600,8 @@ function createCustomSelect({ options, value, onChange, triggerStyle = '', place
 
     if (hasTwoGroups) {
       dropdown.style.cssText += 'display:flex;flex-direction:row;min-width:420px;max-height:none;overflow:visible;';
-      const [g1Start, g2Start] = groupIndices;
-      const col1Opts = options.slice(g1Start, g2Start);
+      const g2Start = groupIndices[1];
+      const col1Opts = options.slice(0, g2Start);
       const col2Opts = options.slice(g2Start);
 
       [col1Opts, col2Opts].forEach((colOpts, colIdx) => {
@@ -2043,8 +2054,11 @@ function renderScheduledVisits(container) {
 
       const dateCell = document.createElement('div');
       dateCell.style.cssText = 'font-size:13px;font-weight:600;color:var(--accent-magenta);white-space:nowrap;';
-      const isPast = l.viewing_date < now.toISOString().slice(0,10);
+      const pragueNow = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Prague' }).replace(' ', 'T');
+      const viewingCutoff = new Date(new Date(`${l.viewing_date}T${l.viewing_time || '23:59'}:00Z`).getTime() + 30 * 60000).toISOString().slice(0, 19);
+      const isPast = pragueNow >= viewingCutoff;
       dateCell.textContent = formatDateDMY(l.viewing_date) + (isPast ? ' ✓' : '');
+      if (isPast) bullet.style.opacity = '0.45';
 
       const timeCell = document.createElement('div');
       timeCell.style.cssText = 'font-size:13px;color:var(--text-secondary);white-space:nowrap;';
@@ -2246,7 +2260,7 @@ function initFilterBar() {
   metroBtn.onmouseover = () => metroBtn.style.color = '#ffd700';
   metroBtn.onmouseout = () => metroBtn.style.color = '#7a4a8a';
   metroBtn.onclick = openMetroMap;
-  filterBar.appendChild(metroBtn);
+  document.getElementById('metro-bar').appendChild(metroBtn);
 
   wrap.appendChild(filterBar);
 }
